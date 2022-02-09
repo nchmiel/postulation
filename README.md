@@ -2,3 +2,4 @@ The file procedures.txt contains the code for the procedures described in the di
 
 It can be executed using Singular (https://www.singular.uni-kl.de).
 
+In the file inputs.txt one can find inputs used to obtain the list of promising examples in Chapter 8.
