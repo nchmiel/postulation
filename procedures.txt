@@ -1,0 +1,410 @@
+// structure of list st:
+// degree, number of free planes, first hyperplane list, second hyperplane list,...
+
+// structure of hyperplane list p:
+// number of points, lines, stars, tetrahedrons, arrangements
+
+// one can set allow345=0 to make only reductions red0-red2
+int allow345=1;
+
+ring R=0,x,dp;
+
+// procedure counting the virtual dimension of given list
+proc vdm(list st) {
+  number d=st[1];
+  number s=st[2];
+  number v=(d+4)*(d+3)*(d+2)*(d+1)/24-s*(d+2)*(d+1)/2+s*(s-1)/2;
+  list p;
+  for (int i=3;i<=size(st);i++) {
+    p=st[i];
+    v=v-p[1];
+    v=v-p[2]*(d+1);
+    v=v-p[3]*(3*d+2);   
+    v=v-p[4]*(6*d+2);
+    v=v-p[5]*(10*d);    
+  }
+  return(v);
+}
+
+// procedure displaying the structure of list and the virtual dimension
+proc writesystem(list st) {
+  string str=string(st[1])+"; "+string(st[2])+" pl ";
+  list p;
+  for (int i=3;i<=size(st);i++) {
+    p=st[i];
+    if (p[5]<>0) { 
+      str=str+"|"+string(p[1])+"p "+string(p[2])+"l "+string(p[3])+"s "
+      +string(p[4])+"t "+string(p[5])+"a|"; 
+    } else { 
+      if (p[4]<>0) {
+        str=str+"|"+string(p[1])+"p "+string(p[2])+"l "+string(p[3])+"s "
+        +string(p[4])+"t|"; 
+      } else { 
+        if (p[3]<>0) { 
+          str=str+"|"+string(p[1])+"p "+string(p[2])+"l "+string(p[3])+"s|"; 
+        } else { 
+          if (p[2]<>0) { 
+            str=str+"|"+string(p[1])+"p "+string(p[2])+"l|"; 
+          } else { str=str+"|"+string(p[1])+"p|"; }
+        }
+      }
+    }
+  }
+  str=str+"  vdim = "+string(vdm(st));
+  return(str);
+}
+
+// procedures red0 - red5 are the reductions of list 
+// = possible residual subschemes
+
+// add 1-5 planes to new hyperplane
+// x = number of planes
+proc red0(list st, int x) {
+  list newst,newp;
+  newst[1]=st[1]-1;
+  newst[2]=st[2]-x;
+  for (int i=3;i<=size(st);i++) {newst[i]=st[i];}
+  newp[1]=0;
+  if (x==2) {newp[2]=1;} else {newp[2]=0;}
+  if (x==3) {newp[3]=1;} else {newp[3]=0;}
+  if (x==4) {newp[4]=1;} else {newp[4]=0;}
+  if (x==5) {newp[5]=1;} else {newp[5]=0;}
+  newst[size(st)+1]=newp;
+  return(newst);
+}
+
+// add 0-5 planes to old hyperplane
+// pn = index of hyperplane, x = number of planes
+proc red1(list st, int pn, int x) {
+  list newst;
+  newst[1]=st[1]-1;
+  newst[2]=st[2]-x;
+  list p,newp;
+  for (int i=3;i<=size(st);i++) {
+    p=st[i];
+    if (i==pn) {
+      newp[1]=p[2]*x+p[3]*(3*x+1)+p[4]*(6*x+4)+p[5]*(10*x+10);
+      if (x==2) {newp[2]=1;} else {newp[2]=0;}
+      if (x==3) {newp[3]=1;} else {newp[3]=0;}
+      if (x==4) {newp[4]=1;} else {newp[4]=0;}
+      if (x==5) {newp[5]=1;} else {newp[5]=0;}
+    } else {newp=p;} 
+    newst[i]=newp;
+  }
+  return(newst);
+}
+
+// reduce (k2) lines and bases of stars (k3), tetrahedrons (k4) 
+// and arrangements (k5)
+proc red2(list st, int k2, int k3, int k4, int k5) {
+  list newst;
+  newst[1]=st[1]-1;
+  newst[2]=st[2];
+  list p,newp;
+  int m;
+  for (int i=3;i<=size(st);i++) {
+    p=st[i];
+    newp=p;
+    m=min(k2,p[2]);
+    k2=k2-m;
+    newp[2]=newp[2]-m;
+    m=min(k3,p[3]);
+    k3=k3-m;
+    newp[3]=newp[3]-m;
+    newp[2]=newp[2]+m;
+    m=min(k4,p[4]);
+    k4=k4-m;
+    newp[4]=newp[4]-m;
+    newp[3]=newp[3]+m;
+    m=min(k5,p[5]);
+    k5=k5-m;
+    newp[5]=newp[5]-m;
+    newp[4]=newp[4]+m;
+    newst[i]=newp;
+  }
+  return(newst);
+}
+
+// add 1-5 planes to new hyerplane with base of s
+// pn = index of hyperplane with base of s, x = number of planes
+// points from the intersection of hyperplane pn and size(st)+1
+// stay in pn (considered in the procedure)
+proc red3(list st, int pn, int x) {
+  list newst;
+  newst[1]=st[1]-1;
+  newst[2]=st[2]-x;
+  list p,newp;
+  for (int i=3;i<=size(st);i++) {
+    p=st[i];
+    if (i==pn) { 
+      newp[1]=p[1]+2*x;
+      newp[2]=p[2]+1;
+      newp[3]=p[3]-1;
+      newp[4]=p[4];
+      newp[5]=p[5];
+      } else {newp=p;}
+    newst[i]=newp;
+  }
+  newp[1]=0;
+  if (x==2) {newp[2]=1;} else {newp[2]=0;}
+  if (x==3) {newp[3]=1;} else {newp[3]=0;}
+  if (x==4) {newp[4]=1;} else {newp[4]=0;}
+  if (x==5) {newp[5]=1;} else {newp[5]=0;}
+  newst[size(st)+1]=newp;
+  return(newst);
+}
+
+// add 1-5 planes to new hyerplane with base of t
+// pn = index of hyperplane with base of t, x = number of planes
+// points from the intersection of hyperplane pn and size(st)+1
+// stay in pn (considered in the procedure)
+proc red4(list st, int pn, int x) {
+  list newst;
+  newst[1]=st[1]-1;
+  newst[2]=st[2]-x;
+  list p,newp;
+  for (int i=3;i<=size(st);i++) {
+    p=st[i];
+    if (i==pn) {
+      newp[1]=p[1]+3*x;
+      newp[2]=p[2];
+      newp[3]=p[3]+1;
+      newp[4]=p[4]-1;
+      newp[5]=p[5];
+      } else {newp=p;}
+  newst[i]=newp;
+  }
+  newp[1]=0;
+  if (x==2) {newp[2]=1;} else {newp[2]=0;}
+  if (x==3) {newp[3]=1;} else {newp[3]=0;}
+  if (x==4) {newp[4]=1;} else {newp[4]=0;}
+  if (x==5) {newp[5]=1;} else {newp[5]=0;}
+  newst[size(st)+1]=newp;
+  return(newst);
+}
+
+// add 1-5 planes to new hyerplane with base of a
+// pn = index of hyperplane with base of a, x = number of planes
+// points from the intersection of hyperplane pn and size(st)+1
+// stay in pn (considered in the procedure)
+proc red5(list st, int pn, int x) {
+  list newst;
+  newst[1]=st[1]-1;
+  newst[2]=st[2]-x;
+  list p,newp;
+  for (int i=3;i<=size(st);i++) {
+    p=st[i];
+    if (i==pn) {
+      newp[1]=p[1]+4*x;
+      newp[2]=p[2];
+      newp[3]=p[3];
+      newp[4]=p[4]+1;
+      newp[5]=p[5]-1;
+      } else {newp=p;}
+  newst[i]=newp;
+  }
+  newp[1]=0;
+  if (x==2) {newp[2]=1;} else {newp[2]=0;}
+  if (x==3) {newp[3]=1;} else {newp[3]=0;}
+  if (x==4) {newp[4]=1;} else {newp[4]=0;}
+  if (x==5) {newp[5]=1;} else {newp[5]=0;}
+  newst[size(st)+1]=newp;
+  return(newst);
+}
+
+// procedure displaying consecutive reductions with lowest difference
+// between the virtual dimensions of original and residual subscheme
+// (with appropriate signs)
+// input: degree d, number of planes s, 
+// maximal number of degenerated planes max (1-5)
+proc go(int d, int s, int max) {
+  list st=d,s;
+  writesystem(st);
+  string info;
+  list best,newst,p;         
+  int mp3,gmp3,pn,gpn;       
+  int x,mx,gx;               
+  number vd,nvd,df;       
+  int k2,k3,k4,k5,i2,i3,i4,i5;  
+  int ok,tred1,tred345; 
+  list t;
+  for (int i=3;i<=size(st);i++) {t[i]=0;}
+  while (st[1]>0) {
+    mp3=size(st)-1;             
+    mx=max; if (st[2]<mx) {mx=st[2];}      
+    ok=0; tred1=0; tred345=0;
+    vd=vdm(st);
+    for (pn=3;pn<=size(st);pn++) {
+      if (t[pn]==0){
+        for (x=0;x<=mx;x++) {
+          newst=red1(st,pn,x);
+          nvd=vdm(newst);
+          if ((vd<=nvd)&&(nvd<=0)) {
+            if ((ok==0)||((ok==1)&&(nvd-vd<df))) {
+              ok=1; tred345=0; tred1=1;
+              df=nvd-vd;
+              best=newst;
+              gpn=pn;
+              info="stick "+string(x)+" to #"+string(pn-2);
+            }
+          }
+          if ((vd>=nvd)&&(nvd>=0)) {
+            if ((ok==0)||((ok==1)&&(vd-nvd<df))) {
+              ok=1; tred345=0; tred1=1;
+              df=vd-nvd;
+              best=newst;
+              gpn=pn;
+              info="stick "+string(x)+" to #"+string(pn-2);
+            }
+          }
+        }
+      }
+      p=st[pn];
+      if ((p[5]==1)&&(allow345==1)){
+        for (x=1;x<=mx;x++) {
+          newst=red5(st,pn,x);
+          nvd=vdm(newst);
+          if ((vd<=nvd)&&(nvd<=0)) {
+            if ((ok==0)||((ok==1)&&(nvd-vd<df))) {
+              ok=1; tred345=1; tred1=0;
+              df=nvd-vd;
+              best=newst;
+              gpn=pn;
+              info="stick "+string(x)+" to #"+string(size(st)-1)
+              +" with base from #"+string(pn-2);
+            }
+          }
+          if ((vd>=nvd)&&(nvd>=0)) {
+            if ((ok==0)||((ok==1)&&(vd-nvd<df))) {
+              ok=1; tred345=1; tred1=0;
+              df=vd-nvd;
+              best=newst;
+              gpn=pn;
+              info="stick "+string(x)+" to #"+string(size(st)-1)
+              +" with base from #"+string(pn-2);
+            }
+          }
+        }
+      }    
+      if ((p[4]==1)&&(allow345==1)){
+        for (x=1;x<=mx;x++) {
+          newst=red4(st,pn,x);
+          nvd=vdm(newst);
+          if ((vd<=nvd)&&(nvd<=0)) {
+            if ((ok==0)||((ok==1)&&(nvd-vd<df))) {
+              ok=1; tred345=1; tred1=0;
+              df=nvd-vd;
+              best=newst;
+              gpn=pn;
+              info="stick "+string(x)+" to #"+string(size(st)-1)
+              +" with base from #"+string(pn-2);
+            }
+          }
+          if ((vd>=nvd)&&(nvd>=0)) {
+            if ((ok==0)||((ok==1)&&(vd-nvd<df))) {
+              ok=1; tred345=1; tred1=0;
+              df=vd-nvd;
+              best=newst;
+              gpn=pn;
+              info="stick "+string(x)+" to #"+string(size(st)-1)
+              +" with base from #"+string(pn-2);
+            }
+          }
+        }
+      }      
+      if ((p[3]==1)&&(allow345==1)){
+        for (x=1;x<=mx;x++) {
+          newst=red3(st,pn,x);
+          nvd=vdm(newst);
+          if ((vd<=nvd)&&(nvd<=0)) {
+            if ((ok==0)||((ok==1)&&(nvd-vd<df))) {
+              ok=1; tred345=1; tred1=0;
+              df=nvd-vd;
+              best=newst;
+              gpn=pn;
+              info="stick "+string(x)+" to #"+string(size(st)-1)
+              +" with base from #"+string(pn-2);
+            }
+          }
+          if ((vd>=nvd)&&(nvd>=0)) {
+            if ((ok==0)||((ok==1)&&(vd-nvd<df))) {
+              ok=1; tred345=1; tred1=0;
+              df=vd-nvd;
+              best=newst;
+              gpn=pn;
+              info="stick "+string(x)+" to #"+string(size(st)-1)
+              +" with base from #"+string(pn-2);
+            }
+          }
+        }
+      }
+    }
+    k2=0;k3=0;k4=0;k5=0;
+    for (pn=3;pn<=size(st);pn++) {
+      p=st[pn];
+      k2=k2+p[2];
+      k3=k3+p[3];
+      k4=k4+p[4];
+      k4=k4+p[5];
+    }
+    for (i2=0;i2<=k2;i2++) {
+      for (i3=0;i3<=k3;i3++) {
+        for (i4=0;i4<=k4;i4++) {
+          for (i5=0;i5<=k5;i5++) {
+            if (i2+i3+i4+i5>0) {
+              newst=red2(st,i2,i3,i4,i5);
+              nvd=vdm(newst);
+              if ((vd<=nvd)&&(nvd<=0)) {
+                if ((ok==0)||((ok==1)&&(nvd-vd<df))) {
+                  ok=1; tred345=0; tred1=0;
+                  df=nvd-vd;
+                  best=newst;
+                  info="reduce "+string(i2)+" l, "+string(i3)+" s, "
+                  +string(i4)+" t, "+string(i5)+" a";
+                }
+              }
+              if ((vd>=nvd)&&(nvd>=0)) {
+                if ((ok==0)||((ok==1)&&(vd-nvd<df))) {
+                  ok=1; tred345=0; tred1=0;
+                  df=vd-nvd;
+                  best=newst;
+                  info="reduce "+string(i2)+" l, "+string(i3)+" s, "
+                  +string(i4)+" t, "+string(i5)+" a";
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    for (x=1;x<=mx;x++) { 
+      newst=red0(st,x);
+      nvd=vdm(newst);
+      if ((vd<=nvd)&&(nvd<=0)) {
+        if ((ok==0)||((ok==1)&&(nvd-vd<df))) {
+          ok=1; tred345=0; tred1=0;
+          df=nvd-vd;
+          best=newst;
+          info="stick "+string(x)+" to #"+string(size(st)-1);
+        }
+      }
+      if ((vd>=nvd)&&(nvd>=0)) {
+        if ((ok==0)||((ok==1)&&(vd-nvd<df))) {
+          ok=1; tred345=0; tred1=0;
+          df=vd-nvd;
+          best=newst;
+          info="stick "+string(x)+" to #"+string(size(st)-1);
+        }
+      }
+    }    
+    if (ok==0) {return("Stop");}
+    if (tred345==1){t[size(st)+1]=gpn;} else {t[size(st)+1]=0;}
+    if (tred1==1) {
+      for (i=3;i<=size(st);i++) {
+        if (t[i]==gpn) {t[i]=0;}}
+    }
+    info;
+    st=best;
+    writesystem(st);
+  }
+}
